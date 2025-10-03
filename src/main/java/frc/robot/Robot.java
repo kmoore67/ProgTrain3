@@ -4,9 +4,15 @@
 
 package frc.robot;
 
+import edu.wpi.first.hal.simulation.RoboRioDataJNI;
+import edu.wpi.first.networktables.GenericEntry;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 /**
  * The methods in this class are called automatically corresponding to each mode, as described in
@@ -14,19 +20,31 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  * this project, you must also update the Main.java file in the project.
  */
 public class Robot extends TimedRobot {
-  private static final String kDefaultAuto = "Default";
-  private static final String kCustomAuto = "My Auto";
-  private String m_autoSelected;
-  private final SendableChooser<String> m_chooser = new SendableChooser<>();
+ 
+    private Command m_autonomousCommand;
+
+    private final RobotContainer m_robotContainer;
+  
+    private ShuffleboardTab tab;
+  
+    private GenericEntry matchTimeEntry;
+    private GenericEntry voltsEntry;
+    private GenericEntry ampsEntry;
 
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
    */
   public Robot() {
-    m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
-    m_chooser.addOption("My Auto", kCustomAuto);
-    SmartDashboard.putData("Auto choices", m_chooser);
+   
+    /*Create Robot Contrainer */
+    m_robotContainer = new RobotContainer();
+    
+    /*Initialize base Shuffleboard tab */
+    tab = Shuffleboard.getTab("Drivers");
+    matchTimeEntry = tab.add("Match time",0.0).getEntry();
+    voltsEntry = tab.add("Volts",0.0).getEntry();
+    ampsEntry = tab.add("Amps",0.0).getEntry();
   }
 
   /**
@@ -37,7 +55,15 @@ public class Robot extends TimedRobot {
    * SmartDashboard integrated updating.
    */
   @Override
-  public void robotPeriodic() {}
+  public void robotPeriodic() {
+      /* Run the command scheduler */
+    CommandScheduler.getInstance().run();
+
+    /* Update base Shuffleboard tab with Roborio data  */
+    matchTimeEntry.setDouble(DriverStation.getMatchTime());
+    voltsEntry.setDouble(RoboRioDataJNI.getVInVoltage());
+    ampsEntry.setDouble(RoboRioDataJNI.getVInCurrent());
+  }
 
   /**
    * This autonomous (along with the chooser code above) shows how to select between different
@@ -51,40 +77,51 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
+    SmartDashboard.putBoolean("Auto", true);
   }
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) {
-      case kCustomAuto:
-        // Put custom auto code here
-        break;
-      case kDefaultAuto:
-      default:
-        // Put default auto code here
-        break;
-    }
+  
   }
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    SmartDashboard.putBoolean("Teleop", true);
+
+    if (m_autonomousCommand != null) {
+      m_autonomousCommand.cancel();
+    }
+  }
 
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {}
 
+  @Override
+  public void teleopExit() {}
+
+
   /** This function is called once when the robot is disabled. */
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+    
+    SmartDashboard.putBoolean("Teleop", false);
+    SmartDashboard.putBoolean("Auto", false);
+
+  }
 
   /** This function is called periodically when disabled. */
   @Override
-  public void disabledPeriodic() {}
+  public void disabledPeriodic() {
+    m_robotContainer.updateAutonCommand();
+  }
+
+  @Override
+  public void disabledExit() {
+  }
 
   /** This function is called once when test mode is enabled. */
   @Override
